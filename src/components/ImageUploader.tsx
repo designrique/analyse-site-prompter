@@ -4,7 +4,7 @@ interface ImageUploaderProps {
   onImageChange: (file: File | null) => void;
   url: string;
   onUrlChange: (url: string) => void;
-  onUrlBlur: () => void;
+  onFetchPreview: () => void;
   onAnalyze: () => void;
   isLoading: boolean;
   imageFile: File | null;
@@ -16,7 +16,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     onImageChange, 
     url, 
     onUrlChange, 
-    onUrlBlur,
+    onFetchPreview,
     onAnalyze, 
     isLoading, 
     imageFile,
@@ -46,15 +46,23 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
       <div className="w-full">
         <label htmlFor="url-input" className="block mb-2 text-sm font-medium text-slate-300">1. Cole a URL do site</label>
-        <input
-            id="url-input"
-            type="text"
-            value={url}
-            onBlur={onUrlBlur}
-            onChange={(e) => onUrlChange(e.target.value)}
-            placeholder="https://exemplo.com (tentaremos buscar uma pré-visualização)"
-            className="w-full p-3 bg-brand-primary border border-slate-600 rounded-md text-brand-light placeholder-slate-400 focus:ring-2 focus:ring-brand-accent focus:outline-none transition-shadow"
-        />
+        <div className="flex flex-col sm:flex-row items-center gap-2">
+            <input
+                id="url-input"
+                type="text"
+                value={url}
+                onChange={(e) => onUrlChange(e.target.value)}
+                placeholder="https://exemplo.com"
+                className="flex-grow w-full p-3 bg-brand-primary border border-slate-600 rounded-md text-brand-light placeholder-slate-400 focus:ring-2 focus:ring-brand-accent focus:outline-none transition-shadow"
+            />
+            <button
+                onClick={onFetchPreview}
+                disabled={isPreviewLoading || !url}
+                className="flex-shrink-0 w-full sm:w-auto px-4 py-3 bg-slate-600 text-brand-light font-semibold rounded-md hover:bg-slate-500 transition-colors disabled:bg-slate-700 disabled:cursor-not-allowed"
+            >
+                {isPreviewLoading ? 'Buscando...' : 'Buscar Pré-visualização'}
+            </button>
+        </div>
       </div>
       
       <div className="w-full min-h-[200px] bg-brand-primary border border-slate-600 rounded-md flex items-center justify-center p-4">
@@ -79,7 +87,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         ) : (
             <div className="text-center text-slate-400">
                 <p>A pré-visualização do site aparecerá aqui.</p>
-                <p className="text-sm">Insira uma URL ou selecione um arquivo.</p>
+                <p className="text-sm">A imagem será buscada na análise, ou você pode fornecê-la.</p>
             </div>
         )}
     </div>
@@ -87,7 +95,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
       <div className="w-full">
         <label className="block mb-2 text-sm font-medium text-slate-300">
-          {previewError ? '2. A pré-visualização falhou, por favor envie um arquivo:' : 'Ou envie uma captura de tela manualmente'}
+          {previewError ? '2. A busca falhou, por favor envie um arquivo:' : 'Ou envie uma captura de tela manualmente'}
         </label>
         <div className="flex items-center gap-4">
              <button 
@@ -105,7 +113,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
       <button
         onClick={onAnalyze}
-        disabled={!imageFile || isLoading}
+        disabled={!url || isLoading}
         className="w-full md:w-1/2 flex items-center justify-center gap-2 bg-brand-accent text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-500 transition-all duration-300 disabled:bg-slate-500 disabled:cursor-not-allowed transform hover:scale-105"
       >
         {isLoading ? (

@@ -5,6 +5,40 @@ import { AnalysisDisplay } from './components/AnalysisDisplay';
 import { analyzeDesignSystem } from './services/geminiService';
 import type { AnalysisResult } from './types';
 
+// Helper function to fetch the OG image from a URL
+const fetchOgImage = async (url: string): Promise<File> => {
+    // Use a CORS proxy to fetch the website's HTML
+    const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch website HTML.');
+    }
+    const html = await response.text();
+
+    // Parse the HTML to find the og:image meta tag
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const ogImageContent = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
+
+    if (!ogImageContent) {
+        throw new Error('Meta tag "og:image" not found.');
+    }
+
+    // The og:image URL might be relative, so resolve it against the base URL
+    const ogImageUrl = new URL(ogImageContent, url).href;
+
+    // Fetch the image itself (also through a proxy to be safe)
+    const imageResponse = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(ogImageUrl)}`);
+    if (!imageResponse.ok) {
+        throw new Error('Failed to fetch the OG image.');
+    }
+    const imageBlob = await imageResponse.blob();
+
+    // Create a File object and return it
+    const imageFileName = ogImageUrl.split('/').pop()?.split('?')[0] || 'og-preview.png';
+    return new File([imageBlob], imageFileName, { type: imageBlob.type });
+};
+
+
 const App: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [url, setUrl] = useState<string>('');
@@ -48,7 +82,7 @@ const App: React.FC = () => {
     setPreviewError(null); // Clear preview error on manual selection
   };
 
-  const handleUrlBlur = async () => {
+  const handleFetchPreview = async () => {
     if (!url || !url.startsWith('http')) {
         return;
     }
@@ -58,38 +92,8 @@ const App: React.FC = () => {
     if(imageFile) handleImageChange(null); // Clear previous image only if it exists
 
     try {
-        // Use a CORS proxy to fetch the website's HTML
-        const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
-        if (!response.ok) {
-            throw new Error('Failed to fetch website HTML.');
-        }
-        const html = await response.text();
-
-        // Parse the HTML to find the og:image meta tag
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const ogImageContent = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
-
-        if (!ogImageContent) {
-            throw new Error('Meta tag "og:image" not found.');
-        }
-
-        // The og:image URL might be relative, so resolve it against the base URL
-        const ogImageUrl = new URL(ogImageContent, url).href;
-
-        // Fetch the image itself (also through a proxy to be safe)
-        const imageResponse = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(ogImageUrl)}`);
-        if (!imageResponse.ok) {
-            throw new Error('Failed to fetch the OG image.');
-        }
-        const imageBlob = await imageResponse.blob();
-
-        // Create a File object and set it in the state
-        const imageFileName = ogImageUrl.split('/').pop()?.split('?')[0] || 'og-preview.png';
-        const imageFile = new File([imageBlob], imageFileName, { type: imageBlob.type });
-        
-        handleImageChange(imageFile);
-
+        const fetchedFile = await fetchOgImage(url);
+        handleImageChange(fetchedFile);
     } catch (err) {
         console.error("OG Image fetch error:", err);
         setPreviewError('Não foi possível carregar a pré-visualização. Por favor, envie uma captura de tela manualmente.');
@@ -112,8 +116,8 @@ const App: React.FC = () => {
   };
 
   const handleAnalyze = useCallback(async () => {
-    if (!imageFile) {
-      // Safeguard, should not be reachable via the UI with the new button logic.
+    if (!url || !url.startsWith('http')) {
+      setError("Por favor, insira uma URL válida para analisar.");
       return;
     }
 
@@ -126,9 +130,33 @@ const App: React.FC = () => {
     setError(null);
     setAnalysisResult(null);
 
+    let analysisImageFile = imageFile;
+
+    // If no image is present, try to fetch it automatically before analyzing.
+    if (!analysisImageFile) {
+      setPreviewError(null);
+      try {
+        const fetchedFile = await fetchOgImage(url);
+        setImageFile(fetchedFile); // Update state for the UI
+        analysisImageFile = fetchedFile; // Use for the current analysis run
+      } catch (err) {
+        console.error("OG Image fetch error on analyze:", err);
+        setError('A pré-visualização automática falhou. Por favor, envie uma captura de tela manualmente para poder analisar este site.');
+        setIsLoading(false);
+        return;
+      }
+    }
+    
+    // Safeguard: at this point, an image MUST exist.
+    if (!analysisImageFile) {
+        setError('Uma imagem é necessária para a análise. A busca automática falhou, por favor, envie uma captura de tela.');
+        setIsLoading(false);
+        return;
+    }
+
     try {
-      const base64Image = await fileToBase64(imageFile);
-      const result = await analyzeDesignSystem(base64Image, imageFile.type, url);
+      const base64Image = await fileToBase64(analysisImageFile);
+      const result = await analyzeDesignSystem(base64Image, analysisImageFile.type, url);
       setAnalysisResult(result);
     } catch (err) {
       console.error(err);
@@ -151,7 +179,8 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [imageFile, isApiKeyReady, isAiStudio, url]);
+  }, [url, imageFile, isApiKeyReady, isAiStudio]);
+
 
   const handleSelectApiKey = async () => {
     if (isAiStudio) {
@@ -209,13 +238,13 @@ const App: React.FC = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto flex flex-col items-center gap-8">
           <p className="text-center text-slate-300 text-lg">
-            Forneça a captura de tela de um site para analisá-lo com IA.
+            Cole a URL de um site para analisá-lo com IA.
           </p>
           <ImageUploader 
             onImageChange={handleImageChange}
             url={url}
             onUrlChange={setUrl}
-            onUrlBlur={handleUrlBlur}
+            onFetchPreview={handleFetchPreview}
             onAnalyze={handleAnalyze}
             isLoading={isLoading}
             imageFile={imageFile}
