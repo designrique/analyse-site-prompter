@@ -7,6 +7,7 @@ import type { AnalysisResult } from './types';
 
 const App: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [url, setUrl] = useState<string>('');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +75,7 @@ const App: React.FC = () => {
 
     try {
       const base64Image = await fileToBase64(imageFile);
-      const result = await analyzeDesignSystem(base64Image, imageFile.type);
+      const result = await analyzeDesignSystem(base64Image, imageFile.type, url);
       setAnalysisResult(result);
     } catch (err) {
       console.error(err);
@@ -97,7 +98,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [imageFile, isApiKeyReady, isAiStudio]);
+  }, [imageFile, isApiKeyReady, isAiStudio, url]);
 
   const handleSelectApiKey = async () => {
     if (isAiStudio) {
@@ -159,6 +160,8 @@ const App: React.FC = () => {
           </p>
           <ImageUploader 
             onImageChange={handleImageChange}
+            url={url}
+            onUrlChange={setUrl}
             onAnalyze={handleAnalyze}
             isLoading={isLoading}
           />

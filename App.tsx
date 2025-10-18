@@ -7,6 +7,8 @@ import type { AnalysisResult } from './src/types';
 
 const App: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
+  // FIX: Add state for the URL input.
+  const [url, setUrl] = useState<string>('');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +76,8 @@ const App: React.FC = () => {
 
     try {
       const base64Image = await fileToBase64(imageFile);
-      const result = await analyzeDesignSystem(base64Image, imageFile.type);
+      // FIX: Pass the URL to the analysis service.
+      const result = await analyzeDesignSystem(base64Image, imageFile.type, url);
       setAnalysisResult(result);
     } catch (err) {
       console.error(err);
@@ -97,7 +100,8 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [imageFile, isApiKeyReady, isAiStudio]);
+    // FIX: Add url to the dependency array.
+  }, [imageFile, isApiKeyReady, isAiStudio, url]);
 
   const handleSelectApiKey = async () => {
     if (isAiStudio) {
@@ -157,8 +161,11 @@ const App: React.FC = () => {
           <p className="text-center text-slate-300 text-lg">
             Faça upload da captura de tela de um site para analisá-lo com IA.
           </p>
+          {/* FIX: Pass url and onUrlChange props to ImageUploader to satisfy its required props. */}
           <ImageUploader 
             onImageChange={handleImageChange}
+            url={url}
+            onUrlChange={setUrl}
             onAnalyze={handleAnalyze}
             isLoading={isLoading}
           />

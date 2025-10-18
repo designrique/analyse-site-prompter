@@ -68,12 +68,15 @@ const analysisSchema = {
   required: ["overallEvaluation", "colorPalette", "typography", "mainComponents", "developmentPrompts"],
 };
 
-export const analyzeDesignSystem = async (imageBase64: string, mimeType: string): Promise<AnalysisResult> => {
-  // Fix: The API key must be obtained exclusively from `process.env.API_KEY` as per the coding guidelines.
+export const analyzeDesignSystem = async (imageBase64: string, mimeType: string, url?: string): Promise<AnalysisResult> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const model = 'gemini-2.5-flash';
   
-  const prompt = `Você é um especialista em UI/UX e consultor de desenvolvimento frontend. Analise a captura de tela do site fornecida. Avalie seu design system, focando na consistência visual, usabilidade e princípios de design modernos. Forneça uma análise detalhada no formato JSON solicitado. A análise deve ser perspicaz e os prompts de desenvolvimento devem ser práticos e prontos para uso para gerar código com Tailwind CSS.`;
+  let prompt = `Você é um especialista em UI/UX e consultor de desenvolvimento frontend. Analise a captura de tela do site fornecida. Avalie seu design system, focando na consistência visual, usabilidade e princípios de design modernos. Forneça uma análise detalhada no formato JSON solicitado. A análise deve ser perspicaz e os prompts de desenvolvimento devem ser práticos e prontos para uso para gerar código com Tailwind CSS.`;
+
+  if (url) {
+    prompt += `\n\nA captura de tela é do site localizado no seguinte endereço: ${url}. Leve em conta o contexto do site ao realizar a análise.`;
+  }
 
   const imagePart = {
     inlineData: {

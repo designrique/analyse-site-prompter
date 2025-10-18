@@ -2,6 +2,8 @@ import React, { useState, useRef } from 'react';
 
 interface ImageUploaderProps {
   onImageChange: (file: File | null) => void;
+  url: string;
+  onUrlChange: (url: string) => void;
   onAnalyze: () => void;
   isLoading: boolean;
 }
@@ -13,7 +15,7 @@ const UploadIcon: React.FC = () => (
 );
 
 
-export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageChange, onAnalyze, isLoading }) => {
+export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageChange, url, onUrlChange, onAnalyze, isLoading }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +82,19 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageChange, onA
           </div>
         )}
       </label>
+
+      <div className="w-full">
+        <label htmlFor="url-input" className="sr-only">URL do Site</label>
+        <input
+            id="url-input"
+            type="text"
+            value={url}
+            onChange={(e) => onUrlChange(e.target.value)}
+            placeholder="Opcional: cole a URL do site analisado aqui"
+            className="w-full p-3 bg-brand-primary border border-slate-600 rounded-md text-brand-light placeholder-slate-400 focus:ring-2 focus:ring-brand-accent focus:outline-none transition-shadow"
+        />
+      </div>
+
 
       <button
         onClick={onAnalyze}
