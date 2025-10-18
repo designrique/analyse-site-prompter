@@ -45,14 +45,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       />
 
       <div className="w-full">
-        <label htmlFor="url-input" className="block mb-2 text-sm font-medium text-slate-300">URL do Site (Opcional)</label>
+        <label htmlFor="url-input" className="block mb-2 text-sm font-medium text-slate-300">1. Cole a URL do site</label>
         <input
             id="url-input"
             type="text"
             value={url}
             onBlur={onUrlBlur}
             onChange={(e) => onUrlChange(e.target.value)}
-            placeholder="Cole a URL para gerar uma pré-visualização automática"
+            placeholder="https://exemplo.com (tentaremos buscar uma pré-visualização)"
             className="w-full p-3 bg-brand-primary border border-slate-600 rounded-md text-brand-light placeholder-slate-400 focus:ring-2 focus:ring-brand-accent focus:outline-none transition-shadow"
         />
       </div>
@@ -86,7 +86,9 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
 
       <div className="w-full">
-        <label className="block mb-2 text-sm font-medium text-slate-300">Ou envie uma captura de tela</label>
+        <label className="block mb-2 text-sm font-medium text-slate-300">
+          {previewError ? '2. A pré-visualização falhou, por favor envie um arquivo:' : 'Ou envie uma captura de tela manualmente'}
+        </label>
         <div className="flex items-center gap-4">
              <button 
                 type="button" 
@@ -103,7 +105,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
       <button
         onClick={onAnalyze}
-        disabled={!imageFile || isLoading}
+        disabled={(!imageFile && !url.startsWith('http')) || isLoading}
         className="w-full md:w-1/2 flex items-center justify-center gap-2 bg-brand-accent text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-500 transition-all duration-300 disabled:bg-slate-500 disabled:cursor-not-allowed transform hover:scale-105"
       >
         {isLoading ? (
