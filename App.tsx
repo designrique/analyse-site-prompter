@@ -1,52 +1,15 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Header } from './src/components/Header';
-import { ImageUploader } from './src/components/ImageUploader';
 import { AnalysisDisplay } from './src/components/AnalysisDisplay';
 import { analyzeDesignSystem } from './src/services/geminiService';
 import type { AnalysisResult } from './src/types';
 
-// Helper function to fetch the OG image from a URL
-const fetchOgImage = async (url: string): Promise<File> => {
-    // Use a CORS proxy to fetch the website's HTML
-    const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
-    if (!response.ok) {
-        throw new Error('Failed to fetch website HTML.');
-    }
-    const html = await response.text();
-
-    // Parse the HTML to find the og:image meta tag
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const ogImageContent = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
-
-    if (!ogImageContent) {
-        throw new Error('Meta tag "og:image" not found.');
-    }
-
-    // The og:image URL might be relative, so resolve it against the base URL
-    const ogImageUrl = new URL(ogImageContent, url).href;
-
-    // Fetch the image itself (also through a proxy to be safe)
-    const imageResponse = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(ogImageUrl)}`);
-    if (!imageResponse.ok) {
-        throw new Error('Failed to fetch the OG image.');
-    }
-    const imageBlob = await imageResponse.blob();
-
-    // Create a File object and return it
-    const imageFileName = ogImageUrl.split('/').pop()?.split('?')[0] || 'og-preview.png';
-    return new File([imageBlob], imageFileName, { type: imageBlob.type });
-};
-
 
 const App: React.FC = () => {
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [url, setUrl] = useState<string>('');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // State to determine the environment and API key status
   const [isApiKeyReady, setIsApiKeyReady] = useState<boolean>(false);
@@ -74,47 +37,6 @@ const App: React.FC = () => {
     checkEnvironment();
   }, []);
 
-
-  const handleImageChange = (file: File | null) => {
-    setImageFile(file);
-    setAnalysisResult(null);
-    setError(null);
-    setPreviewError(null); // Clear preview error on manual selection
-  };
-
-  const handleFetchPreview = async () => {
-    if (!url || !url.startsWith('http')) {
-        return;
-    }
-
-    setIsPreviewLoading(true);
-    setPreviewError(null);
-    if(imageFile) handleImageChange(null); // Clear previous image only if it exists
-
-    try {
-        const fetchedFile = await fetchOgImage(url);
-        handleImageChange(fetchedFile);
-    } catch (err) {
-        console.error("OG Image fetch error:", err);
-        setPreviewError('Não foi possível carregar a pré-visualização. Por favor, envie uma captura de tela manualmente.');
-    } finally {
-        setIsPreviewLoading(false);
-    }
-  };
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const result = reader.result as string;
-        // remove data:image/jpeg;base64, prefix
-        resolve(result.split(',')[1]);
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
   const handleAnalyze = useCallback(async () => {
     if (!url || !url.startsWith('http')) {
       setError("Por favor, insira uma URL válida para analisar.");
@@ -130,33 +52,8 @@ const App: React.FC = () => {
     setError(null);
     setAnalysisResult(null);
 
-    let analysisImageFile = imageFile;
-
-    // If no image is present, try to fetch it automatically before analyzing.
-    if (!analysisImageFile) {
-      setPreviewError(null);
-      try {
-        const fetchedFile = await fetchOgImage(url);
-        setImageFile(fetchedFile); // Update state for the UI
-        analysisImageFile = fetchedFile; // Use for the current analysis run
-      } catch (err) {
-        console.error("OG Image fetch error on analyze:", err);
-        setError('A pré-visualização automática falhou. Por favor, envie uma captura de tela manualmente para poder analisar este site.');
-        setIsLoading(false);
-        return;
-      }
-    }
-    
-    // Safeguard: at this point, an image MUST exist.
-    if (!analysisImageFile) {
-        setError('Uma imagem é necessária para a análise. A busca automática falhou, por favor, envie uma captura de tela.');
-        setIsLoading(false);
-        return;
-    }
-
     try {
-      const base64Image = await fileToBase64(analysisImageFile);
-      const result = await analyzeDesignSystem(base64Image, analysisImageFile.type, url);
+      const result = await analyzeDesignSystem(url);
       setAnalysisResult(result);
     } catch (err) {
       console.error(err);
@@ -171,7 +68,7 @@ const App: React.FC = () => {
         } else if (err.message.includes('API key not found')) {
             setError('A chave de API não foi configurada corretamente no ambiente de hospedagem. Verifique as variáveis de ambiente.');
         } else {
-            setError('Ocorreu um erro ao analisar a imagem. Verifique o console para mais detalhes.');
+            setError('Ocorreu um erro ao analisar o site. Verifique o console para mais detalhes.');
         }
       } else {
         setError('Ocorreu um erro desconhecido.');
@@ -179,7 +76,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [url, imageFile, isApiKeyReady, isAiStudio]);
+  }, [url, isApiKeyReady, isAiStudio]);
 
 
   const handleSelectApiKey = async () => {
@@ -240,17 +137,36 @@ const App: React.FC = () => {
           <p className="text-center text-slate-300 text-lg">
             Cole a URL de um site para analisá-lo com IA.
           </p>
-          <ImageUploader 
-            onImageChange={handleImageChange}
-            url={url}
-            onUrlChange={setUrl}
-            onFetchPreview={handleFetchPreview}
-            onAnalyze={handleAnalyze}
-            isLoading={isLoading}
-            imageFile={imageFile}
-            isPreviewLoading={isPreviewLoading}
-            previewError={previewError}
-          />
+          <div className="w-full max-w-2xl p-6 bg-brand-secondary/50 rounded-lg border border-slate-600 shadow-xl flex flex-col items-center gap-6">
+            <div className="w-full">
+              <label htmlFor="url-input" className="block mb-2 text-sm font-medium text-slate-300">Cole a URL do site para analisar</label>
+              <input
+                  id="url-input"
+                  type="text"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://exemplo.com"
+                  className="w-full p-3 bg-brand-primary border border-slate-600 rounded-md text-brand-light placeholder-slate-400 focus:ring-2 focus:ring-brand-accent focus:outline-none transition-shadow"
+              />
+            </div>
+            <button
+              onClick={handleAnalyze}
+              disabled={!url || isLoading}
+              className="w-full md:w-1/2 flex items-center justify-center gap-2 bg-brand-accent text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-500 transition-all duration-300 disabled:bg-slate-500 disabled:cursor-not-allowed transform hover:scale-105"
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Analisando...
+                </>
+              ) : (
+                'Analisar Design System'
+              )}
+            </button>
+          </div>
           <AnalysisDisplay 
             result={analysisResult}
             isLoading={isLoading}

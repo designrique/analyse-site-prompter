@@ -68,30 +68,15 @@ const analysisSchema = {
   required: ["overallEvaluation", "colorPalette", "typography", "mainComponents", "developmentPrompts"],
 };
 
-export const analyzeDesignSystem = async (imageBase64: string, mimeType: string, url?: string): Promise<AnalysisResult> => {
+export const analyzeDesignSystem = async (url: string): Promise<AnalysisResult> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const model = 'gemini-2.5-flash';
   
-  let prompt = `Você é um especialista em UI/UX e consultor de desenvolvimento frontend. Analise a captura de tela do site fornecida. Avalie seu design system, focando na consistência visual, usabilidade e princípios de design modernos. Forneça uma análise detalhada no formato JSON solicitado. A análise deve ser perspicaz e os prompts de desenvolvimento devem ser práticos e prontos para uso para gerar código com Tailwind CSS.`;
-
-  if (url) {
-    prompt += `\n\nA captura de tela é do site localizado no seguinte endereço: ${url}. Leve em conta o contexto do site ao realizar a análise.`;
-  }
-
-  const imagePart = {
-    inlineData: {
-      data: imageBase64,
-      mimeType: mimeType,
-    },
-  };
-  
-  const textPart = {
-    text: prompt
-  };
+  const prompt = `Você é um especialista em UI/UX e consultor de desenvolvimento frontend. Com base no seu conhecimento sobre o site localizado em ${url}, analise seu design system. Avalie-o focando na consistência visual, usabilidade e princípios de design modernos. Forneça uma análise detalhada no formato JSON solicitado. A análise deve ser perspicaz e os prompts de desenvolvimento devem ser práticos e prontos para uso para gerar código com Tailwind CSS. Se você não tiver informações específicas sobre este URL, indique isso na avaliação geral e tente inferir um design system plausível com base no nome do domínio ou propósito do site, mas deixe claro que é uma inferência.`;
 
   const response = await ai.models.generateContent({
     model: model,
-    contents: { parts: [textPart, imagePart] },
+    contents: prompt,
     config: {
       responseMimeType: "application/json",
       responseSchema: analysisSchema,
