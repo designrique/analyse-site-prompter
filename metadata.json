@@ -1,0 +1,5 @@
+{
+  "name": "Analisador de Design System com IA",
+  "description": "Faça upload de uma captura de tela de um site para obter uma análise completa de seu sistema de design, paleta de cores, tipografia e componentes, além de gerar prompts de desenvolvimento para recriá-los.",
+  "requestFramePermissions": []
+}
