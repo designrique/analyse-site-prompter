@@ -18,18 +18,16 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkEnvironment = async () => {
-      // Check if running in an environment with aistudio (like AI Studio)
       const studioEnv = !!(window as any).aistudio;
       setIsAiStudio(studioEnv);
 
       if (studioEnv) {
-        // In AI Studio, we must check if a key has been selected by the user.
         const hasKey = await (window as any).aistudio.hasSelectedApiKey();
         setIsApiKeyReady(hasKey);
       } else {
-        // In other environments (like Netlify), the API key is expected
-        // to be in the environment variables, so we can proceed.
-        setIsApiKeyReady(true);
+        // In other environments, check if the API key is present in the environment.
+        const hasKey = !!process.env.API_KEY;
+        setIsApiKeyReady(hasKey);
       }
       setIsCheckingEnv(false);
     };
@@ -44,7 +42,11 @@ const App: React.FC = () => {
     }
 
     if (!isApiKeyReady) {
-      setError('Por favor, selecione uma chave de API para começar.');
+      if(isAiStudio) {
+        setError('Por favor, selecione uma chave de API para começar.');
+      } else {
+        setError('A chave de API não está configurada no ambiente de hospedagem.');
+      }
       return;
     }
 
@@ -65,8 +67,13 @@ const App: React.FC = () => {
             } else {
                 setError('A chave de API configurada no ambiente de hospedagem é inválida. Verifique suas variáveis de ambiente.');
             }
-        } else if (err.message.includes('API key not found')) {
-            setError('A chave de API não foi configurada corretamente no ambiente de hospedagem. Verifique as variáveis de ambiente.');
+        } else if (err.message.includes('API key not found') || err.message.includes('An API Key must be set')) {
+             if (isAiStudio) {
+                setError('Por favor, selecione uma chave de API para começar.');
+                setIsApiKeyReady(false);
+            } else {
+                setError('A chave de API não foi configurada corretamente no ambiente de hospedagem. Verifique as variáveis de ambiente.');
+            }
         } else {
             setError('Ocorreu um erro ao analisar o site. Verifique o console para mais detalhes.');
         }
@@ -97,24 +104,35 @@ const App: React.FC = () => {
     );
   }
 
-  // If the key isn't ready (which should only happen in AI Studio), show the selection screen.
+  // If the key isn't ready, show the appropriate message based on the environment.
   if (!isApiKeyReady) {
     return (
       <div className="min-h-screen bg-brand-primary font-sans flex flex-col">
         <Header />
         <main className="flex-grow flex flex-col items-center justify-center text-center p-4">
           <div className="max-w-md mx-auto">
-            <h2 className="text-2xl font-bold text-brand-light mb-4">Selecione uma chave de API para começar</h2>
-            <p className="text-slate-300 mb-6">
-              Para usar este aplicativo, você precisa selecionar uma chave de API do Google AI.
-              Para mais informações sobre cobrança, visite <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-brand-accent underline hover:text-teal-400">a documentação oficial</a>.
-            </p>
-            <button
-              onClick={handleSelectApiKey}
-              className="bg-brand-accent text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-500 transition-all duration-300 transform hover:scale-105"
-            >
-              Selecionar Chave de API
-            </button>
+            {isAiStudio ? (
+              <>
+                <h2 className="text-2xl font-bold text-brand-light mb-4">Selecione uma chave de API para começar</h2>
+                <p className="text-slate-300 mb-6">
+                  Para usar este aplicativo, você precisa selecionar uma chave de API do Google AI.
+                  Para mais informações sobre cobrança, visite <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-brand-accent underline hover:text-teal-400">a documentação oficial</a>.
+                </p>
+                <button
+                  onClick={handleSelectApiKey}
+                  className="bg-brand-accent text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-500 transition-all duration-300 transform hover:scale-105"
+                >
+                  Selecionar Chave de API
+                </button>
+              </>
+            ) : (
+               <>
+                <h2 className="text-2xl font-bold text-brand-light mb-4">Configuração da Chave de API Necessária</h2>
+                <p className="text-slate-300 mb-6">
+                  A aplicação não conseguiu detectar uma Chave de API do Google AI. Para ambientes de produção, certifique-se de que a variável de ambiente <code className="bg-brand-secondary px-1 py-0.5 rounded text-teal-400">API_KEY</code> está corretamente configurada e acessível pelo seu serviço de hospedagem.
+                </p>
+              </>
+            )}
              {error && (
                 <div className="mt-4 text-center p-4 bg-red-900/50 border border-red-500 rounded-lg">
                     <p className="text-red-300">{error}</p>
