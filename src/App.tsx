@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Header } from './src/components/Header';
-import { ImageUploader } from './src/components/ImageUploader';
-import { AnalysisDisplay } from './src/components/AnalysisDisplay';
-import { analyzeDesignSystem } from './src/services/geminiService';
-import type { AnalysisResult } from './src/types';
+import { Header } from './components/Header';
+import { ImageUploader } from './components/ImageUploader';
+import { AnalysisDisplay } from './components/AnalysisDisplay';
+import { analyzeDesignSystem } from './services/geminiService';
+import type { AnalysisResult } from './types';
 
 const App: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);

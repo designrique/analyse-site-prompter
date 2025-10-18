@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { AnalysisResult } from '../types';
 
@@ -70,6 +69,7 @@ const analysisSchema = {
 };
 
 export const analyzeDesignSystem = async (imageBase64: string, mimeType: string): Promise<AnalysisResult> => {
+  // Fix: The API key must be obtained exclusively from `process.env.API_KEY` as per the coding guidelines.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const model = 'gemini-2.5-flash';
   
