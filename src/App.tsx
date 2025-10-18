@@ -11,6 +11,8 @@ const App: React.FC = () => {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // State to determine the environment and API key status
   const [isApiKeyReady, setIsApiKeyReady] = useState<boolean>(false);
@@ -43,6 +45,57 @@ const App: React.FC = () => {
     setImageFile(file);
     setAnalysisResult(null);
     setError(null);
+    setPreviewError(null); // Clear preview error on manual selection
+  };
+
+  const handleUrlBlur = async () => {
+    if (!url || !url.startsWith('http')) {
+        return;
+    }
+
+    setIsPreviewLoading(true);
+    setPreviewError(null);
+    if(imageFile) handleImageChange(null); // Clear previous image only if it exists
+
+    try {
+        // Use a CORS proxy to fetch the website's HTML
+        const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch website HTML.');
+        }
+        const html = await response.text();
+
+        // Parse the HTML to find the og:image meta tag
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const ogImageContent = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
+
+        if (!ogImageContent) {
+            throw new Error('Meta tag "og:image" not found.');
+        }
+
+        // The og:image URL might be relative, so resolve it against the base URL
+        const ogImageUrl = new URL(ogImageContent, url).href;
+
+        // Fetch the image itself (also through a proxy to be safe)
+        const imageResponse = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(ogImageUrl)}`);
+        if (!imageResponse.ok) {
+            throw new Error('Failed to fetch the OG image.');
+        }
+        const imageBlob = await imageResponse.blob();
+
+        // Create a File object and set it in the state
+        const imageFileName = ogImageUrl.split('/').pop()?.split('?')[0] || 'og-preview.png';
+        const imageFile = new File([imageBlob], imageFileName, { type: imageBlob.type });
+        
+        handleImageChange(imageFile);
+
+    } catch (err) {
+        console.error("OG Image fetch error:", err);
+        setPreviewError('Não foi possível carregar a pré-visualização. Por favor, envie uma captura de tela manualmente.');
+    } finally {
+        setIsPreviewLoading(false);
+    }
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -156,14 +209,18 @@ const App: React.FC = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto flex flex-col items-center gap-8">
           <p className="text-center text-slate-300 text-lg">
-            Faça upload da captura de tela de um site para analisá-lo com IA.
+            Forneça a captura de tela de um site para analisá-lo com IA.
           </p>
           <ImageUploader 
             onImageChange={handleImageChange}
             url={url}
             onUrlChange={setUrl}
+            onUrlBlur={handleUrlBlur}
             onAnalyze={handleAnalyze}
             isLoading={isLoading}
+            imageFile={imageFile}
+            isPreviewLoading={isPreviewLoading}
+            previewError={previewError}
           />
           <AnalysisDisplay 
             result={analysisResult}
