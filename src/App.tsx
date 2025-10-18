@@ -113,8 +113,7 @@ const App: React.FC = () => {
 
   const handleAnalyze = useCallback(async () => {
     if (!imageFile) {
-      // This case is reachable if a URL was provided (enabling the button), but the og:image fetch failed.
-      setError('A pré-visualização automática falhou ou não está disponível. Por favor, envie uma captura de tela manualmente para poder analisar este site.');
+      // Safeguard, should not be reachable via the UI with the new button logic.
       return;
     }
 

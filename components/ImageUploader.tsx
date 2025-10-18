@@ -105,7 +105,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
       <button
         onClick={onAnalyze}
-        disabled={(!imageFile && !url.startsWith('http')) || isLoading}
+        disabled={!imageFile || isLoading}
         className="w-full md:w-1/2 flex items-center justify-center gap-2 bg-brand-accent text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-500 transition-all duration-300 disabled:bg-slate-500 disabled:cursor-not-allowed transform hover:scale-105"
       >
         {isLoading ? (
